@@ -1,0 +1,6 @@
+environment      = "local"
+aws_region       = "us-east-1"
+aws_endpoint_url = "http://localhost:4566"
+owner            = "nexora-team"
+
+vpc_cidr = "10.20.0.0/16"

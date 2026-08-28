@@ -1,0 +1,22 @@
+{
+  "name": "@nexora/web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "build": "vue-tsc -b && vite build",
+    "typecheck": "vue-tsc -b --pretty false",
+    "preview": "vite preview --host 0.0.0.0"
+  },
+  "dependencies": {
+    "@nexora/contracts": "workspace:*",
+    "vue": "^3.5.42"
+  },
+  "devDependencies": {
+    "@types/node": "^24.3.1",
+    "@vitejs/plugin-vue": "^6.0.1",
+    "vite": "^7.1.4",
+    "vue-tsc": "^3.0.6"
+  }
+}

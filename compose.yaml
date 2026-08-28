@@ -1,0 +1,67 @@
+name: nexora
+
+services:
+  floci:
+    image: floci/floci:1.5.27
+    ports:
+      - "4566:4566"
+    environment:
+      FLOCI_STORAGE_MODE: persistent
+      FLOCI_HOSTNAME: floci
+      FLOCI_BASE_URL: http://floci:4566
+    volumes:
+      - floci-data:/app/data
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - nexora
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    environment:
+      APP_ENV: local
+      API_PORT: 3000
+      WEB_ORIGIN: http://localhost:5173
+      AWS_REGION: us-east-1
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      AWS_ENDPOINT_URL: http://floci:4566
+      DYNAMODB_TABLE: nexora-local
+    ports:
+      - "3000:3000"
+    depends_on:
+      floci:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://localhost:3000/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+    networks:
+      - nexora
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    ports:
+      - "5173:80"
+    depends_on:
+      api:
+        condition: service_healthy
+    networks:
+      - nexora
+
+volumes:
+  floci-data:
+
+networks:
+  nexora:
+    name: nexora-local
