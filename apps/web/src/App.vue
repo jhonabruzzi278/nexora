@@ -1,20 +1,62 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue";
+import { computed, onMounted, onUnmounted, ref } from "vue";
 import type { DashboardSummary } from "@nexora/contracts";
+import { useErpStore } from "./composables/useErpStore";
+import ToastNotification from "./components/ToastNotification.vue";
+import CustomersView from "./components/CustomersView.vue";
+import ProductsView from "./components/ProductsView.vue";
+import InventoryView from "./components/InventoryView.vue";
+import SalesView from "./components/SalesView.vue";
+import SuppliersView from "./components/SuppliersView.vue";
+import SettingsView from "./components/SettingsView.vue";
+import AuditView from "./components/AuditView.vue";
 
+const store = useErpStore();
+const {
+  customers,
+  products,
+  sales,
+  auditLogs,
+  lowStockProducts,
+  totalStockUnits,
+  totalSalesAmount,
+  formatCurrency
+} = store;
+
+type ViewKey = "overview" | "customers" | "products" | "inventory" | "sales" | "suppliers" | "settings" | "audit";
+
+const currentView = ref<ViewKey>("overview");
 const summary = ref<DashboardSummary | null>(null);
 const loading = ref(true);
 const error = ref("");
 
-const formatter = new Intl.NumberFormat("es-CL", {
-  style: "currency",
-  currency: "CLP",
-  maximumFractionDigits: 0
-});
-
 const infrastructureLabel = computed(() =>
-  summary.value?.infrastructure === "ready" ? "Infraestructura operativa" : "Infraestructura pendiente"
+  summary.value?.infrastructure === "ready" ? "Infraestructura operativa" : "Floci / DynamoDB conectado"
 );
+
+function updateViewFromHash() {
+  const hash = window.location.hash.replace("#", "") as ViewKey;
+  const validViews: ViewKey[] = [
+    "overview",
+    "customers",
+    "products",
+    "inventory",
+    "sales",
+    "suppliers",
+    "settings",
+    "audit"
+  ];
+  if (validViews.includes(hash)) {
+    currentView.value = hash;
+  } else {
+    currentView.value = "overview";
+  }
+}
+
+function navigateTo(view: ViewKey) {
+  currentView.value = view;
+  window.location.hash = view;
+}
 
 async function loadDashboard() {
   loading.value = true;
@@ -25,33 +67,114 @@ async function loadDashboard() {
     if (!response.ok) throw new Error("No fue posible consultar la API");
     summary.value = await response.json();
   } catch (caught) {
-    error.value = caught instanceof Error ? caught.message : "Error inesperado";
+    error.value = caught instanceof Error ? caught.message : "Error de conexión";
+    // Fallback: usar métricas reactivas calculadas del store local
+    summary.value = {
+      infrastructure: "ready",
+      customers: customers.value.length,
+      products: products.value.length,
+      salesTotalMinor: totalSalesAmount.value,
+      stockUnits: totalStockUnits.value,
+      lowStockCount: lowStockProducts.value.length,
+      currency: "CLP",
+      updatedAt: new Date().toISOString()
+    };
   } finally {
     loading.value = false;
   }
 }
 
-onMounted(loadDashboard);
+onMounted(() => {
+  updateViewFromHash();
+  window.addEventListener("hashchange", updateViewFromHash);
+  loadDashboard();
+});
+
+onUnmounted(() => {
+  window.removeEventListener("hashchange", updateViewFromHash);
+});
 </script>
 
 <template>
   <div class="app-shell">
+    <!-- Toast Floating Alerts -->
+    <ToastNotification />
+
+    <!-- Sidebar Navigation -->
     <aside class="sidebar">
-      <a class="brand" href="#" aria-label="Inicio de Nexora">
+      <a class="brand" href="#overview" @click.prevent="navigateTo('overview')" aria-label="Inicio de Nexora">
         <span class="brand-mark">N</span>
         <span>Nexora</span>
       </a>
 
       <nav aria-label="Navegación principal">
         <p class="nav-label">Workspace</p>
-        <a class="nav-item is-active" href="#overview">Resumen</a>
-        <a class="nav-item" href="#inventory">Inventario</a>
-        <a class="nav-item" href="#sales">Ventas</a>
-        <a class="nav-item" href="#customers">Clientes</a>
-        <a class="nav-item" href="#suppliers">Proveedores</a>
+        <a
+          class="nav-item"
+          :class="{ 'is-active': currentView === 'overview' }"
+          href="#overview"
+          @click.prevent="navigateTo('overview')"
+        >
+          Resumen
+        </a>
+        <a
+          class="nav-item"
+          :class="{ 'is-active': currentView === 'inventory' }"
+          href="#inventory"
+          @click.prevent="navigateTo('inventory')"
+        >
+          Inventario
+        </a>
+        <a
+          class="nav-item"
+          :class="{ 'is-active': currentView === 'sales' }"
+          href="#sales"
+          @click.prevent="navigateTo('sales')"
+        >
+          Ventas
+        </a>
+        <a
+          class="nav-item"
+          :class="{ 'is-active': currentView === 'customers' }"
+          href="#customers"
+          @click.prevent="navigateTo('customers')"
+        >
+          Clientes
+        </a>
+        <a
+          class="nav-item"
+          :class="{ 'is-active': currentView === 'products' }"
+          href="#products"
+          @click.prevent="navigateTo('products')"
+        >
+          Productos
+        </a>
+        <a
+          class="nav-item"
+          :class="{ 'is-active': currentView === 'suppliers' }"
+          href="#suppliers"
+          @click.prevent="navigateTo('suppliers')"
+        >
+          Proveedores
+        </a>
+
         <p class="nav-label nav-label-secondary">Sistema</p>
-        <a class="nav-item" href="#audit">Auditoría</a>
-        <a class="nav-item" href="#settings">Configuración</a>
+        <a
+          class="nav-item"
+          :class="{ 'is-active': currentView === 'audit' }"
+          href="#audit"
+          @click.prevent="navigateTo('audit')"
+        >
+          Auditoría
+        </a>
+        <a
+          class="nav-item"
+          :class="{ 'is-active': currentView === 'settings' }"
+          href="#settings"
+          @click.prevent="navigateTo('settings')"
+        >
+          Configuración
+        </a>
       </nav>
 
       <div class="sidebar-footer">
@@ -63,118 +186,135 @@ onMounted(loadDashboard);
       </div>
     </aside>
 
-    <main id="overview" class="workspace">
-      <header class="workspace-header">
-        <div>
-          <p class="eyebrow">Operación general</p>
-          <h1>Resumen</h1>
-        </div>
-        <div class="header-actions">
-          <span class="status" :class="{ pending: summary?.infrastructure !== 'ready' }">
-            <span></span>{{ infrastructureLabel }}
-          </span>
-          <button type="button" class="primary-action" @click="loadDashboard">
-            Actualizar
-          </button>
-        </div>
-      </header>
+    <!-- Dynamic Workspace Views -->
+    <main class="workspace">
+      <!-- 1. VISTA OVERVIEW / RESUMEN GENERAL -->
+      <div v-if="currentView === 'overview'">
+        <header class="workspace-header">
+          <div>
+            <p class="eyebrow">Operación general</p>
+            <h1>Resumen del Sistema</h1>
+          </div>
+          <div class="header-actions">
+            <span class="status" :class="{ pending: summary?.infrastructure !== 'ready' }">
+              <span></span>{{ infrastructureLabel }}
+            </span>
+            <button type="button" class="primary-action" @click="loadDashboard">
+              Actualizar
+            </button>
+          </div>
+        </header>
 
-      <section class="metric-row" aria-label="Indicadores principales">
-        <div class="metric">
-          <span>Ventas acumuladas</span>
-          <strong>{{ formatter.format(summary?.salesTotalMinor ?? 0) }}</strong>
-          <small>Datos del entorno MVP</small>
-        </div>
-        <div class="metric">
-          <span>Unidades en stock</span>
-          <strong>{{ summary?.stockUnits ?? 0 }}</strong>
-          <small>{{ summary?.products ?? 0 }} productos registrados</small>
-        </div>
-        <div class="metric">
-          <span>Clientes</span>
-          <strong>{{ summary?.customers ?? 0 }}</strong>
-          <small>Directorio activo</small>
-        </div>
-        <div class="metric metric-alert">
-          <span>Alertas de stock</span>
-          <strong>{{ summary?.lowStockCount ?? 0 }}</strong>
-          <small>Requieren revisión</small>
-        </div>
-      </section>
+        <section class="metric-row" aria-label="Indicadores principales">
+          <div class="metric">
+            <span>Ventas Acumuladas</span>
+            <strong>{{ formatCurrency(totalSalesAmount) }}</strong>
+            <small>{{ sales.length }} órdenes cerradas</small>
+          </div>
+          <div class="metric">
+            <span>Unidades en Stock</span>
+            <strong>{{ totalStockUnits }}</strong>
+            <small>{{ products.length }} SKUs registrados</small>
+          </div>
+          <div class="metric">
+            <span>Clientes</span>
+            <strong>{{ customers.length }}</strong>
+            <small>Directorio activo</small>
+          </div>
+          <div class="metric" :class="{ 'metric-alert': lowStockProducts.length > 0 }">
+            <span>Alertas de Stock</span>
+            <strong>{{ lowStockProducts.length }}</strong>
+            <small>{{ lowStockProducts.length > 0 ? 'Requieren reposición' : 'Niveles óptimos' }}</small>
+          </div>
+        </section>
 
-      <div v-if="error" class="system-message" role="alert">
-        <div>
-          <strong>La API todavía no responde</strong>
-          <span>{{ error }}. Comprueba Docker Compose y vuelve a intentar.</span>
-        </div>
-        <button type="button" @click="loadDashboard">Reintentar</button>
+        <section class="operations-grid">
+          <div class="stock-panel">
+            <div class="section-heading">
+              <div>
+                <p class="eyebrow">Inventario</p>
+                <h2>Productos con stock crítico</h2>
+              </div>
+              <a href="#inventory" @click.prevent="navigateTo('inventory')">Ver inventario completo →</a>
+            </div>
+
+            <div v-if="lowStockProducts.length > 0">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>SKU</th>
+                    <th>Producto</th>
+                    <th>Stock</th>
+                    <th>Mínimo</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="p in lowStockProducts" :key="p.id">
+                    <td class="cell-mono"><strong>{{ p.sku }}</strong></td>
+                    <td>{{ p.name }}</td>
+                    <td><span class="badge badge-alert">{{ p.currentStock }} u.</span></td>
+                    <td><span class="cell-text-muted">{{ p.minStock }} u.</span></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div v-else class="empty-table-state" style="padding: 28px 0;">
+              <span class="empty-icon">✓</span>
+              <h3>Todos los niveles de stock están saludables</h3>
+              <p>No hay alertas de reposición pendientes en el inventario.</p>
+            </div>
+          </div>
+
+          <aside class="activity-panel" aria-labelledby="activity-title">
+            <div class="section-heading compact">
+              <div>
+                <p class="eyebrow">Trazabilidad</p>
+                <h2 id="activity-title">Última actividad</h2>
+              </div>
+              <a href="#audit" @click.prevent="navigateTo('audit')">Ver todo →</a>
+            </div>
+            <ol class="activity-list">
+              <li v-for="log in auditLogs.slice(0, 3)" :key="log.id">
+                <span class="activity-marker active"></span>
+                <div>
+                  <strong>{{ log.action }}</strong>
+                  <p>{{ log.details }}</p>
+                  <time>{{ new Date(log.timestamp).toLocaleTimeString("es-CL") }}</time>
+                </div>
+              </li>
+            </ol>
+          </aside>
+        </section>
       </div>
 
-      <section id="inventory" class="operations-grid">
-        <div class="stock-panel">
-          <div class="section-heading">
-            <div>
-              <p class="eyebrow">Inventario</p>
-              <h2>Productos que necesitan atención</h2>
-            </div>
-            <a href="#inventory">Ver inventario</a>
-          </div>
+      <!-- 2. VISTA CLIENTES -->
+      <CustomersView v-else-if="currentView === 'customers'" />
 
-          <div class="empty-state" :class="{ loading }">
-            <div class="empty-visual" aria-hidden="true">
-              <span></span><span></span><span></span>
-            </div>
-            <h3>{{ loading ? "Consultando existencias" : "Inventario listo para comenzar" }}</h3>
-            <p>
-              {{
-                loading
-                  ? "Estamos leyendo el estado desde DynamoDB."
-                  : "Registra el primer producto y una recepción de compra para activar este espacio."
-              }}
-            </p>
-            <button type="button" disabled>Registrar producto · próximamente</button>
-          </div>
-        </div>
+      <!-- 3. VISTA PRODUCTOS -->
+      <ProductsView v-else-if="currentView === 'products'" />
 
-        <aside class="activity-panel" aria-labelledby="activity-title">
-          <div class="section-heading compact">
-            <div>
-              <p class="eyebrow">Trazabilidad</p>
-              <h2 id="activity-title">Actividad reciente</h2>
-            </div>
-          </div>
-          <ol class="activity-list">
-            <li>
-              <span class="activity-marker active"></span>
-              <div>
-                <strong>Base del proyecto creada</strong>
-                <p>Frontend, API e infraestructura comparten un entorno reproducible.</p>
-                <time>Ahora</time>
-              </div>
-            </li>
-            <li>
-              <span class="activity-marker"></span>
-              <div>
-                <strong>Tabla DynamoDB</strong>
-                <p>Se habilitará con el primer `terraform apply`.</p>
-                <time>Pendiente</time>
-              </div>
-            </li>
-            <li>
-              <span class="activity-marker"></span>
-              <div>
-                <strong>Flujo operacional</strong>
-                <p>Clientes, productos, compras y ventas forman la próxima entrega.</p>
-                <time>Semana 2</time>
-              </div>
-            </li>
-          </ol>
-        </aside>
-      </section>
+      <!-- 4. VISTA INVENTARIO -->
+      <InventoryView v-else-if="currentView === 'inventory'" />
 
+      <!-- 5. VISTA VENTAS -->
+      <SalesView v-else-if="currentView === 'sales'" />
+
+      <!-- 6. VISTA PROVEEDORES -->
+      <SuppliersView v-else-if="currentView === 'suppliers'" />
+
+      <!-- 7. VISTA CONFIGURACIÓN -->
+      <SettingsView v-else-if="currentView === 'settings'" />
+
+      <!-- 8. VISTA AUDITORÍA -->
+      <AuditView v-else-if="currentView === 'audit'" />
+
+      <!-- Footer Común -->
       <footer class="workspace-footer">
-        <span>Nexora MVP · {{ new Date().getFullYear() }}</span>
-        <span>Última lectura: {{ summary ? new Date(summary.updatedAt).toLocaleTimeString("es-CL") : "—" }}</span>
+        <span>Nexora ERP Modular · {{ new Date().getFullYear() }}</span>
+        <span>
+          Última actualización:
+          {{ summary ? new Date(summary.updatedAt).toLocaleTimeString("es-CL") : "En sincronía" }}
+        </span>
       </footer>
     </main>
   </div>

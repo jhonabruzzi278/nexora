@@ -1,0 +1,9 @@
+{
+  "recommendations": [
+    "vue.volar",
+    "hashicorp.terraform",
+    "editorconfig.editorconfig",
+    "amazonwebservices.aws-toolkit-vscode",
+    "dbaeumer.vscode-eslint"
+  ]
+}
