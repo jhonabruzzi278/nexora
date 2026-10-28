@@ -24,12 +24,14 @@ resource "aws_dynamodb_table" "nexora" {
 }
 
 resource "aws_s3_bucket" "web" {
+  count         = var.enable_cdn ? 1 : 0
   bucket        = local.web_bucket
   force_destroy = var.environment == "lab"
 }
 
 resource "aws_s3_bucket_public_access_block" "web" {
-  bucket = aws_s3_bucket.web.id
+  count  = var.enable_cdn ? 1 : 0
+  bucket = aws_s3_bucket.web[0].id
 
   block_public_acls       = true
   block_public_policy     = true
@@ -38,7 +40,8 @@ resource "aws_s3_bucket_public_access_block" "web" {
 }
 
 resource "aws_s3_bucket_ownership_controls" "web" {
-  bucket = aws_s3_bucket.web.id
+  count  = var.enable_cdn ? 1 : 0
+  bucket = aws_s3_bucket.web[0].id
 
   rule {
     object_ownership = "BucketOwnerEnforced"
@@ -46,7 +49,8 @@ resource "aws_s3_bucket_ownership_controls" "web" {
 }
 
 resource "aws_s3_bucket_versioning" "web" {
-  bucket = aws_s3_bucket.web.id
+  count  = var.enable_cdn ? 1 : 0
+  bucket = aws_s3_bucket.web[0].id
 
   versioning_configuration {
     status = "Enabled"
@@ -54,7 +58,8 @@ resource "aws_s3_bucket_versioning" "web" {
 }
 
 resource "aws_s3_bucket_server_side_encryption_configuration" "web" {
-  bucket = aws_s3_bucket.web.id
+  count  = var.enable_cdn ? 1 : 0
+  bucket = aws_s3_bucket.web[0].id
 
   rule {
     apply_server_side_encryption_by_default {
@@ -64,8 +69,8 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "web" {
 }
 
 resource "aws_s3_bucket_lifecycle_configuration" "web" {
-  bucket = aws_s3_bucket.web.id
-
+  count      = var.enable_cdn ? 1 : 0
+  bucket     = aws_s3_bucket.web[0].id
   depends_on = [aws_s3_bucket_versioning.web]
 
   rule {

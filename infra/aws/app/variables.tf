@@ -56,3 +56,27 @@ variable "lambda_reserved_concurrency" {
     error_message = "lambda_reserved_concurrency must be between 1 and 5 for the lab."
   }
 }
+
+variable "use_lab_role" {
+  description = "Set to true when deploying to AWS Academy Learner Lab to use pre-created LabRole instead of creating IAM roles."
+  type        = bool
+  default     = true
+}
+
+variable "lab_role_name" {
+  description = "Name of the pre-created IAM role in AWS Academy Learner Lab."
+  type        = string
+  default     = "LabRole"
+}
+
+variable "enable_cdn" {
+  description = "Set to false when running in AWS Academy Learner Lab where CloudFront is restricted."
+  type        = bool
+  default     = false
+}
+
+variable "enable_budget" {
+  description = "Set to false when running in AWS Academy Learner Lab where budgets:ModifyBudget is restricted."
+  type        = bool
+  default     = false
+}

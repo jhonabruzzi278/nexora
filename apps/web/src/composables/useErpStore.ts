@@ -1,11 +1,14 @@
 import { ref, computed } from "vue";
 import type {
+  Contact,
   Customer,
   Product,
   Supplier,
   MovementType,
   InventoryMovement,
   Sale,
+  PaymentMethod,
+  CashShift,
   CompanySettings,
   AuditLogEntry,
   ToastMessage
@@ -16,9 +19,12 @@ const customers = ref<Customer[]>([
     id: "cust-01",
     taxId: "76.123.456-7",
     name: "Distribuidora Los Andes SpA",
+    isCustomer: true,
+    isSupplier: false,
     email: "contacto@losandes.cl",
     phone: "+56 9 8765 4321",
     address: "Av. Providencia 1234, Santiago",
+    city: "Santiago",
     status: "active",
     createdAt: new Date(Date.now() - 86400000 * 3).toISOString()
   },
@@ -26,9 +32,12 @@ const customers = ref<Customer[]>([
     id: "cust-02",
     taxId: "77.987.654-3",
     name: "Comercial del Valle Ltda.",
+    isCustomer: true,
+    isSupplier: false,
     email: "ventas@delvalle.cl",
     phone: "+56 9 1234 5678",
     address: "Calle Valparaíso 456, Viña del Mar",
+    city: "Viña del Mar",
     status: "active",
     createdAt: new Date(Date.now() - 86400000 * 5).toISOString()
   }
@@ -44,6 +53,8 @@ const products = ref<Product[]>([
     costMinor: 85000,
     currentStock: 18,
     minStock: 5,
+    location: "Bodega Central - Rack A1",
+    status: "active",
     createdAt: new Date(Date.now() - 86400000 * 10).toISOString()
   },
   {
@@ -55,6 +66,8 @@ const products = ref<Product[]>([
     costMinor: 22000,
     currentStock: 3,
     minStock: 10,
+    location: "Bodega Central - Estante B3",
+    status: "active",
     createdAt: new Date(Date.now() - 86400000 * 8).toISOString()
   },
   {
@@ -66,6 +79,8 @@ const products = ref<Product[]>([
     costMinor: 110000,
     currentStock: 12,
     minStock: 4,
+    location: "Bodega Central - Pasillo 4",
+    status: "active",
     createdAt: new Date(Date.now() - 86400000 * 6).toISOString()
   }
 ]);
@@ -75,18 +90,24 @@ const suppliers = ref<Supplier[]>([
     id: "sup-01",
     taxId: "96.555.444-K",
     name: "Global Tech Imports Chile S.A.",
+    isCustomer: false,
+    isSupplier: true,
     contactPerson: "Mariana Silva",
     email: "proveedores@globaltech.cl",
     phone: "+56 2 2334 5566",
+    status: "active",
     createdAt: new Date(Date.now() - 86400000 * 12).toISOString()
   },
   {
     id: "sup-02",
     taxId: "99.111.222-3",
     name: "Redes y Telecomunicaciones del Pacífico",
+    isCustomer: false,
+    isSupplier: true,
     contactPerson: "Carlos Henríquez",
     email: "ventas@redespacifico.cl",
     phone: "+56 2 2778 9900",
+    status: "active",
     createdAt: new Date(Date.now() - 86400000 * 15).toISOString()
   }
 ]);
@@ -95,30 +116,44 @@ const movements = ref<InventoryMovement[]>([
   {
     id: "mov-01",
     productId: "prod-01",
+    productSku: "NEX-SRV-01",
     productName: "Router Industrial Gigabit Cloud",
     type: "IN",
+    sourceLocation: "PROVEEDORES",
+    destLocation: "BODEGA_CENTRAL",
     quantity: 20,
+    unitCostMinor: 85000,
     reason: "Recepción de compra inicial orden #OC-101",
+    referenceDoc: "OC-101",
     performedBy: "Administrador",
     createdAt: new Date(Date.now() - 86400000 * 3).toISOString()
   },
   {
     id: "mov-02",
     productId: "prod-02",
+    productSku: "NEX-ACC-02",
     productName: "Sensor Térmico IoT Gateway",
     type: "IN",
+    sourceLocation: "PROVEEDORES",
+    destLocation: "BODEGA_CENTRAL",
     quantity: 5,
+    unitCostMinor: 22000,
     reason: "Recepción de compra orden #OC-102",
+    referenceDoc: "OC-102",
     performedBy: "Administrador",
     createdAt: new Date(Date.now() - 86400000 * 2).toISOString()
   },
   {
     id: "mov-03",
     productId: "prod-01",
+    productSku: "NEX-SRV-01",
     productName: "Router Industrial Gigabit Cloud",
     type: "OUT",
+    sourceLocation: "BODEGA_CENTRAL",
+    destLocation: "CLIENTES",
     quantity: 2,
     reason: "Venta #VEN-001 a Distribuidora Los Andes",
+    referenceDoc: "VEN-001",
     performedBy: "Administrador",
     createdAt: new Date(Date.now() - 86400000 * 1).toISOString()
   }
@@ -139,19 +174,40 @@ const sales = ref<Sale[]>([
         subtotalMinor: 299980
       }
     ],
+    subtotalMinor: 252084,
+    taxMinor: 47896,
     totalMinor: 299980,
+    paymentMethod: "CASH",
     status: "COMPLETED",
     createdAt: new Date(Date.now() - 86400000 * 1).toISOString()
   }
 ]);
 
+const currentShift = ref<CashShift | null>({
+  id: "shift-01",
+  openedAt: new Date(Date.now() - 3600000 * 4).toISOString(),
+  openedBy: "Admin",
+  initialCashMinor: 50000,
+  cashSalesMinor: 299980,
+  cardSalesMinor: 0,
+  transferSalesMinor: 0,
+  cashOutMinor: 0,
+  expectedCashMinor: 349980,
+  status: "OPEN"
+});
+
 const settings = ref<CompanySettings>({
   legalName: "Nexora Technologies SpA",
+  commercialName: "Nexora Store",
   taxId: "76.999.888-4",
+  activity: "Servicios y Soluciones Informáticas",
   email: "contacto@nexora.cloud",
   phone: "+56 2 2999 1100",
   address: "Av. Andrés Bello 2711, Las Condes, Santiago",
+  city: "Santiago",
   currency: "CLP",
+  taxRatePercent: 19,
+  nextSaleFolio: 2,
   updatedAt: new Date().toISOString()
 });
 
@@ -161,8 +217,8 @@ const auditLogs = ref<AuditLogEntry[]>([
     actor: "admin@nexora.cloud",
     action: "SISTEMA_INICIALIZADO",
     entity: "CONFIGURACION",
-    entityId: "TENANT#demo",
-    details: "Configuración inicial de empresa y entorno local DynamoDB",
+    entityId: "COMPANY",
+    details: "Configuración inicial de empresa y entorno dedicado Pyme en DynamoDB",
     timestamp: new Date(Date.now() - 86400000 * 3).toISOString()
   },
   {
@@ -180,7 +236,7 @@ const auditLogs = ref<AuditLogEntry[]>([
     action: "REGISTRAR_VENTA",
     entity: "VENTA",
     entityId: "VEN-001",
-    details: "Venta por $299.980 CLP a Distribuidora Los Andes SpA",
+    details: "Venta por $299.980 CLP en Efectivo a Distribuidora Los Andes SpA",
     timestamp: new Date(Date.now() - 86400000 * 1).toISOString()
   }
 ]);
@@ -222,17 +278,66 @@ export function useErpStore() {
     });
   }
 
-  function addCustomer(data: Omit<Customer, "id" | "createdAt">) {
-    const newCustomer: Customer = {
+  // -----------------------------------------------------------
+  // Contactos (Clientes y Proveedores Unificados)
+  // -----------------------------------------------------------
+
+  function addCustomer(
+    data: Omit<Contact, "id" | "createdAt" | "isCustomer" | "isSupplier" | "status"> & {
+      status?: "active" | "inactive";
+    }
+  ) {
+    const newContact: Contact = {
+      status: "active",
       ...data,
+      isCustomer: true,
+      isSupplier: false,
       id: "cust-" + Math.random().toString(36).substring(2, 7),
       createdAt: new Date().toISOString()
     };
-    customers.value.unshift(newCustomer);
-    addAudit("CREAR_CLIENTE", "CLIENTE", newCustomer.id, `Cliente creado: ${newCustomer.name} (RUT: ${newCustomer.taxId})`);
-    showToast("success", "Cliente Registrado", `Se guardó correctamente a ${newCustomer.name}`);
-    return newCustomer;
+    customers.value.unshift(newContact);
+    addAudit("CREAR_CLIENTE", "CLIENTE", newContact.id, `Cliente creado: ${newContact.name} (RUT: ${newContact.taxId})`);
+    showToast("success", "Cliente Registrado", `Se guardó correctamente a ${newContact.name}`);
+
+    // Sync en background con Fastify
+    fetch("/api/v1/contacts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(newContact)
+    }).catch(() => {});
+
+    return newContact;
   }
+
+  function addSupplier(
+    data: Omit<Contact, "id" | "createdAt" | "isCustomer" | "isSupplier" | "status"> & {
+      status?: "active" | "inactive";
+    }
+  ) {
+    const newContact: Contact = {
+      status: "active",
+      ...data,
+      isCustomer: false,
+      isSupplier: true,
+      id: "sup-" + Math.random().toString(36).substring(2, 7),
+      createdAt: new Date().toISOString()
+    };
+    suppliers.value.unshift(newContact);
+    addAudit("CREAR_PROVEEDOR", "PROVEEDOR", newContact.id, `Proveedor registrado: ${newContact.name}`);
+    showToast("success", "Proveedor Registrado", `${newContact.name} añadido a proveedores.`);
+
+    fetch("/api/v1/contacts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(newContact)
+    }).catch(() => {});
+
+    return newContact;
+  }
+
+  // -----------------------------------------------------------
+  // Catálogo de Productos
+  // -----------------------------------------------------------
 
   function addProduct(data: Omit<Product, "id" | "createdAt">) {
     const exists = products.value.some(
@@ -252,34 +357,43 @@ export function useErpStore() {
     products.value.unshift(newProduct);
 
     if (data.currentStock > 0) {
-      movements.value.unshift({
+      const initialMov: InventoryMovement = {
         id: "mov-" + Math.random().toString(36).substring(2, 7),
         productId: newProduct.id,
+        productSku: newProduct.sku,
         productName: newProduct.name,
         type: "IN",
+        sourceLocation: "PROVEEDORES",
+        destLocation: "BODEGA_CENTRAL",
         quantity: data.currentStock,
         reason: "Stock inicial de apertura",
+        referenceDoc: "APERTURA",
         performedBy: "Administrador",
         createdAt: new Date().toISOString()
-      });
+      };
+      movements.value.unshift(initialMov);
+      fetch("/api/v1/inventory/movements", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(initialMov)
+      }).catch(() => {});
     }
 
     addAudit("CREAR_PRODUCTO", "PRODUCTO", newProduct.id, `Producto creado: SKU ${newProduct.sku} - ${newProduct.name}`);
     showToast("success", "Producto Registrado", `SKU ${newProduct.sku} añadido al catálogo.`);
+
+    fetch("/api/v1/products", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(newProduct)
+    }).catch(() => {});
+
     return newProduct;
   }
 
-  function addSupplier(data: Omit<Supplier, "id" | "createdAt">) {
-    const newSupplier: Supplier = {
-      ...data,
-      id: "sup-" + Math.random().toString(36).substring(2, 7),
-      createdAt: new Date().toISOString()
-    };
-    suppliers.value.unshift(newSupplier);
-    addAudit("CREAR_PROVEEDOR", "PROVEEDOR", newSupplier.id, `Proveedor registrado: ${newSupplier.name}`);
-    showToast("success", "Proveedor Registrado", `${newSupplier.name} añadido a proveedores.`);
-    return newSupplier;
-  }
+  // -----------------------------------------------------------
+  // Inventario por Partida Doble
+  // -----------------------------------------------------------
 
   function recordInventoryMovement(productId: string, type: MovementType, quantity: number, reason: string) {
     const product = products.value.find((p) => p.id === productId);
@@ -304,8 +418,11 @@ export function useErpStore() {
     const movement: InventoryMovement = {
       id: "mov-" + Math.random().toString(36).substring(2, 7),
       productId: product.id,
+      productSku: product.sku,
       productName: product.name,
       type,
+      sourceLocation: type === "IN" ? "PROVEEDORES" : "BODEGA_CENTRAL",
+      destLocation: type === "OUT" ? "CLIENTES" : "BODEGA_CENTRAL",
       quantity,
       reason,
       performedBy: "Administrador",
@@ -319,9 +436,23 @@ export function useErpStore() {
     if (product.currentStock <= product.minStock) {
       showToast("warning", "Alerta de Stock Bajo", `El producto ${product.sku} está en o por debajo del stock mínimo (${product.minStock} u.)`);
     }
+
+    fetch("/api/v1/inventory/movements", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(movement)
+    }).catch(() => {});
   }
 
-  function createSale(customerId: string, itemsData: { productId: string; quantity: number }[]) {
+  // -----------------------------------------------------------
+  // Ventas y Control de Caja
+  // -----------------------------------------------------------
+
+  function createSale(
+    customerId: string,
+    itemsData: { productId: string; quantity: number }[],
+    paymentMethod: PaymentMethod = "CASH"
+  ) {
     const customer = customers.value.find((c) => c.id === customerId);
     if (!customer) {
       showToast("error", "Error", "Cliente no encontrado");
@@ -341,16 +472,21 @@ export function useErpStore() {
       const prod = products.value.find((p) => p.id === item.productId)!;
       prod.currentStock -= item.quantity;
 
-      movements.value.unshift({
+      const mov: InventoryMovement = {
         id: "mov-" + Math.random().toString(36).substring(2, 7),
         productId: prod.id,
+        productSku: prod.sku,
         productName: prod.name,
         type: "OUT",
+        sourceLocation: "BODEGA_CENTRAL",
+        destLocation: "CLIENTES",
         quantity: item.quantity,
         reason: `Venta registrada para ${customer.name}`,
+        referenceDoc: "VENTA",
         performedBy: "Administrador",
         createdAt: new Date().toISOString()
-      });
+      };
+      movements.value.unshift(mov);
 
       if (prod.currentStock <= prod.minStock) {
         showToast("warning", "Alerta de Stock", `${prod.sku} ha alcanzado el nivel de stock mínimo (${prod.currentStock} restantes).`);
@@ -367,21 +503,118 @@ export function useErpStore() {
     });
 
     const totalMinor = saleItems.reduce((acc, curr) => acc + curr.subtotalMinor, 0);
+    const taxRate = (settings.value.taxRatePercent || 19) / 100;
+    const subtotalMinor = Math.round(totalMinor / (1 + taxRate));
+    const taxMinor = totalMinor - subtotalMinor;
+
+    const folio = "VEN-" + String(sales.value.length + 1).padStart(3, "0");
     const newSale: Sale = {
-      id: "VEN-" + String(sales.value.length + 1).padStart(3, "0"),
+      id: folio,
       customerId: customer.id,
       customerName: customer.name,
       items: saleItems,
+      subtotalMinor,
+      taxMinor,
       totalMinor,
+      paymentMethod,
+      shiftId: currentShift.value?.id,
       status: "COMPLETED",
       createdAt: new Date().toISOString()
     };
     sales.value.unshift(newSale);
 
-    addAudit("REGISTRAR_VENTA", "VENTA", newSale.id, `Venta ${newSale.id} por ${formatCurrency(totalMinor)} a ${customer.name}`);
+    // Si la caja está abierta, registrar el cobro en el turno
+    if (currentShift.value && currentShift.value.status === "OPEN") {
+      if (paymentMethod === "CASH") {
+        currentShift.value.cashSalesMinor += totalMinor;
+      } else if (paymentMethod === "DEBIT" || paymentMethod === "CREDIT") {
+        currentShift.value.cardSalesMinor += totalMinor;
+      } else if (paymentMethod === "TRANSFER") {
+        currentShift.value.transferSalesMinor += totalMinor;
+      }
+      currentShift.value.expectedCashMinor =
+        currentShift.value.initialCashMinor + currentShift.value.cashSalesMinor - currentShift.value.cashOutMinor;
+    }
+
+    addAudit("REGISTRAR_VENTA", "VENTA", newSale.id, `Venta ${newSale.id} por ${formatCurrency(totalMinor)} (${paymentMethod}) a ${customer.name}`);
     showToast("success", "Venta Completada", `Venta ${newSale.id} generada por ${formatCurrency(totalMinor)}`);
+
+    fetch("/api/v1/sales", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(newSale)
+    }).catch(() => {});
+
     return newSale;
   }
+
+  // -----------------------------------------------------------
+  // Control de Arqueo y Turnos de Caja
+  // -----------------------------------------------------------
+
+  function openCashShift(initialCashMinor: number, openedBy = "Cajero") {
+    const shift: CashShift = {
+      id: "shift-" + Math.random().toString(36).substring(2, 8),
+      openedAt: new Date().toISOString(),
+      openedBy,
+      initialCashMinor,
+      cashSalesMinor: 0,
+      cardSalesMinor: 0,
+      transferSalesMinor: 0,
+      cashOutMinor: 0,
+      expectedCashMinor: initialCashMinor,
+      status: "OPEN"
+    };
+    currentShift.value = shift;
+    addAudit("APERTURA_CAJA", "CAJA", shift.id, `Apertura de turno de caja con base de ${formatCurrency(initialCashMinor)}`);
+    showToast("success", "Caja Abierta", `Turno iniciado con ${formatCurrency(initialCashMinor)}`);
+
+    fetch("/api/v1/cash-shifts/open", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ initialCashMinor, openedBy })
+    }).catch(() => {});
+
+    return shift;
+  }
+
+  function closeCashShift(actualCashMinor: number, closedBy = "Cajero", notes?: string) {
+    if (!currentShift.value) return;
+
+    const diff = actualCashMinor - currentShift.value.expectedCashMinor;
+    const closed: CashShift = {
+      ...currentShift.value,
+      status: "CLOSED",
+      closedAt: new Date().toISOString(),
+      closedBy,
+      actualCashMinor,
+      differenceMinor: diff,
+      notes
+    };
+
+    currentShift.value = null;
+    addAudit(
+      "CIERRE_CAJA",
+      "CAJA",
+      closed.id,
+      `Cierre de caja. Esperado: ${formatCurrency(closed.expectedCashMinor)}, Contado: ${formatCurrency(actualCashMinor)}, Diferencia: ${formatCurrency(diff)}`
+    );
+
+    const diffText = diff === 0 ? "Cuadrada exacta" : diff > 0 ? `Sobrante de ${formatCurrency(diff)}` : `Faltante de ${formatCurrency(Math.abs(diff))}`;
+    showToast("info", "Caja Cerrada", `Arqueo completado. ${diffText}.`);
+
+    fetch("/api/v1/cash-shifts/close", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ actualCashMinor, closedBy, notes })
+    }).catch(() => {});
+
+    return closed;
+  }
+
+  // -----------------------------------------------------------
+  // Configuración de la Empresa
+  // -----------------------------------------------------------
 
   function updateSettings(newSettings: Partial<CompanySettings>) {
     settings.value = {
@@ -391,6 +624,62 @@ export function useErpStore() {
     };
     addAudit("ACTUALIZAR_CONFIG", "EMPRESA", "CONFIG", `Datos de empresa actualizados: ${settings.value.legalName}`);
     showToast("success", "Configuración Guardada", "Los datos de la empresa han sido actualizados.");
+
+    fetch("/api/v1/company", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(newSettings)
+    }).catch(() => {});
+  }
+
+  // -----------------------------------------------------------
+  // Sincronización con el Backend
+  // -----------------------------------------------------------
+
+  async function syncWithBackend() {
+    try {
+      const [compRes, contRes, prodRes, movRes, saleRes, shiftRes] = await Promise.allSettled([
+        fetch("/api/v1/company"),
+        fetch("/api/v1/contacts"),
+        fetch("/api/v1/products"),
+        fetch("/api/v1/inventory/movements"),
+        fetch("/api/v1/sales"),
+        fetch("/api/v1/cash-shifts/current")
+      ]);
+
+      if (compRes.status === "fulfilled" && compRes.value.ok) {
+        settings.value = await compRes.value.json();
+      }
+      if (contRes.status === "fulfilled" && contRes.value.ok) {
+        const serverContacts: Contact[] = await contRes.value.json();
+        if (serverContacts.length > 0) {
+          customers.value = serverContacts.filter((c) => c.isCustomer);
+          suppliers.value = serverContacts.filter((c) => c.isSupplier);
+        }
+      }
+      if (prodRes.status === "fulfilled" && prodRes.value.ok) {
+        const serverProds: Product[] = await prodRes.value.json();
+        if (serverProds.length > 0) products.value = serverProds;
+      }
+      if (movRes.status === "fulfilled" && movRes.value.ok) {
+        const serverMovs: InventoryMovement[] = await movRes.value.json();
+        if (serverMovs.length > 0) movements.value = serverMovs;
+      }
+      if (saleRes.status === "fulfilled" && saleRes.value.ok) {
+        const serverSales: Sale[] = await saleRes.value.json();
+        if (serverSales.length > 0) sales.value = serverSales;
+      }
+      if (shiftRes.status === "fulfilled" && shiftRes.value.ok) {
+        const serverShift = await shiftRes.value.json();
+        if (serverShift && serverShift.status === "OPEN") {
+          currentShift.value = serverShift;
+        } else if (serverShift && serverShift.status === "CLOSED") {
+          currentShift.value = null;
+        }
+      }
+    } catch (e) {
+      // Entorno local o backend aún inicializando; permanece en estado reactivo local
+    }
   }
 
   const lowStockProducts = computed(() => {
@@ -411,6 +700,7 @@ export function useErpStore() {
     suppliers,
     movements,
     sales,
+    currentShift,
     settings,
     auditLogs,
     toasts,
@@ -425,6 +715,10 @@ export function useErpStore() {
     addSupplier,
     recordInventoryMovement,
     createSale,
-    updateSettings
+    openCashShift,
+    closeCashShift,
+    updateSettings,
+    syncWithBackend
   };
 }
+

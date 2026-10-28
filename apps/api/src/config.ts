@@ -17,7 +17,9 @@ export type AppConfig = z.infer<typeof environmentSchema>;
 export function loadConfig(environment: NodeJS.ProcessEnv = process.env): AppConfig {
   const parsed = environmentSchema.parse(environment);
 
+  const isLambda = Boolean(environment.AWS_LAMBDA_FUNCTION_NAME || environment.AWS_EXECUTION_ENV);
   if (
+    !isLambda &&
     parsed.APP_ENV === "production" &&
     (parsed.AWS_ACCESS_KEY_ID || parsed.AWS_SECRET_ACCESS_KEY || parsed.AWS_SESSION_TOKEN)
   ) {

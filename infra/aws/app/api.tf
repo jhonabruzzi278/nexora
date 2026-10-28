@@ -1,6 +1,6 @@
 data "archive_file" "lambda" {
   type        = "zip"
-  source_file = "${path.root}/../../../apps/api/dist/lambda.js"
+  source_file = "${path.root}/../../../apps/api/dist/lambda.mjs"
   output_path = "${path.root}/.terraform/nexora-lambda.zip"
 }
 
@@ -9,7 +9,14 @@ resource "aws_cloudwatch_log_group" "api" {
   retention_in_days = 7
 }
 
+data "aws_iam_role" "lab_role" {
+  count = var.use_lab_role ? 1 : 0
+  name  = var.lab_role_name
+}
+
 data "aws_iam_policy_document" "lambda_assume" {
+  count = var.use_lab_role ? 0 : 1
+
   statement {
     effect  = "Allow"
     actions = ["sts:AssumeRole"]
@@ -22,11 +29,14 @@ data "aws_iam_policy_document" "lambda_assume" {
 }
 
 resource "aws_iam_role" "api" {
+  count              = var.use_lab_role ? 0 : 1
   name               = "${local.name_prefix}-api-role"
-  assume_role_policy = data.aws_iam_policy_document.lambda_assume.json
+  assume_role_policy = data.aws_iam_policy_document.lambda_assume[0].json
 }
 
 data "aws_iam_policy_document" "api" {
+  count = var.use_lab_role ? 0 : 1
+
   statement {
     sid       = "ReadNexoraTable"
     effect    = "Allow"
@@ -43,14 +53,15 @@ data "aws_iam_policy_document" "api" {
 }
 
 resource "aws_iam_role_policy" "api" {
+  count  = var.use_lab_role ? 0 : 1
   name   = "${local.name_prefix}-api-minimum"
-  role   = aws_iam_role.api.id
-  policy = data.aws_iam_policy_document.api.json
+  role   = aws_iam_role.api[0].id
+  policy = data.aws_iam_policy_document.api[0].json
 }
 
 resource "aws_lambda_function" "api" {
   function_name = "${local.name_prefix}-api"
-  role          = aws_iam_role.api.arn
+  role          = var.use_lab_role ? data.aws_iam_role.lab_role[0].arn : aws_iam_role.api[0].arn
   handler       = "lambda.handler"
   runtime       = "nodejs22.x"
   architectures = ["arm64"]
@@ -69,12 +80,19 @@ resource "aws_lambda_function" "api" {
     }
   }
 
-  depends_on = [aws_iam_role_policy.api, aws_cloudwatch_log_group.api]
+  depends_on = [aws_cloudwatch_log_group.api]
 }
 
 resource "aws_apigatewayv2_api" "api" {
   name          = "${local.name_prefix}-http-api"
   protocol_type = "HTTP"
+
+  cors_configuration {
+    allow_headers = ["*"]
+    allow_methods = ["*"]
+    allow_origins = ["*"]
+    max_age       = 300
+  }
 }
 
 resource "aws_apigatewayv2_integration" "lambda" {
@@ -83,6 +101,12 @@ resource "aws_apigatewayv2_integration" "lambda" {
   integration_uri        = aws_lambda_function.api.invoke_arn
   payload_format_version = "2.0"
   timeout_milliseconds   = 10000
+}
+
+resource "aws_apigatewayv2_route" "default" {
+  api_id    = aws_apigatewayv2_api.api.id
+  route_key = "$default"
+  target    = "integrations/${aws_apigatewayv2_integration.lambda.id}"
 }
 
 resource "aws_apigatewayv2_route" "health" {

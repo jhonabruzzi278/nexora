@@ -1,10 +1,11 @@
 terraform {
   required_version = ">= 1.10.0"
 
-  backend "s3" {
-    use_lockfile = true
-    encrypt      = true
-  }
+  # Descomentar si se usa bucket S3 remoto de bootstrap:
+  # backend "s3" {
+  #   use_lockfile = true
+  #   encrypt      = true
+  # }
 
   required_providers {
     archive = {

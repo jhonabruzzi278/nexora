@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
+import type { PaymentMethod } from "@nexora/contracts";
 import { useErpStore } from "../composables/useErpStore";
 import ModalDialog from "./ModalDialog.vue";
 
@@ -15,6 +16,7 @@ const {
 const showCreateModal = ref(false);
 
 const selectedCustomerId = ref("");
+const selectedPaymentMethod = ref<PaymentMethod>("CASH");
 const cartItems = ref<{ productId: string; quantity: number }[]>([
   { productId: "", quantity: 1 }
 ]);
@@ -36,6 +38,7 @@ const currentModalTotal = computed(() => {
 
 function openModal() {
   selectedCustomerId.value = customers.value[0]?.id || "";
+  selectedPaymentMethod.value = "CASH";
   cartItems.value = [
     {
       productId: products.value[0]?.id || "",
@@ -91,7 +94,7 @@ function validateForm() {
 function handleSave() {
   if (!validateForm()) return;
   try {
-    createSale(selectedCustomerId.value, cartItems.value);
+    createSale(selectedCustomerId.value, cartItems.value, selectedPaymentMethod.value);
     showCreateModal.value = false;
   } catch (error) {
     // Error notificado por store
@@ -139,6 +142,7 @@ function handleSave() {
             <th>N° Orden</th>
             <th>Cliente</th>
             <th>Detalle de Productos</th>
+            <th>Medio de Pago</th>
             <th>Monto Total (CLP)</th>
             <th>Estado</th>
             <th>Fecha / Hora</th>
@@ -162,6 +166,11 @@ function handleSave() {
               </ul>
             </td>
             <td>
+              <span class="badge" :class="sale.paymentMethod === 'CASH' ? 'badge-alert' : 'badge-neutral'">
+                {{ sale.paymentMethod === 'CASH' ? '💵 Efectivo' : sale.paymentMethod === 'DEBIT' ? '💳 Débito' : sale.paymentMethod === 'CREDIT' ? '💳 Crédito' : '📱 Transferencia' }}
+              </span>
+            </td>
+            <td>
               <strong class="total-highlight">{{ formatCurrency(sale.totalMinor) }}</strong>
             </td>
             <td>
@@ -176,7 +185,7 @@ function handleSave() {
         </tbody>
         <tbody v-else>
           <tr>
-            <td colspan="6" class="empty-table-cell">
+            <td colspan="7" class="empty-table-cell">
               <div class="empty-table-state">
                 <span class="empty-icon">💳</span>
                 <h3>Sin ventas registradas aún</h3>
@@ -197,14 +206,26 @@ function handleSave() {
       @close="showCreateModal = false"
     >
       <form @submit.prevent="handleSave" class="form-grid">
-        <div class="form-group">
-          <label for="sale-customer">Seleccionar Cliente <span class="req">*</span></label>
-          <select id="sale-customer" v-model="selectedCustomerId" class="select-field">
-            <option v-for="c in customers" :key="c.id" :value="c.id">
-              {{ c.name }} (RUT: {{ c.taxId }})
-            </option>
-          </select>
-          <small v-if="formErrors.customer" class="error-text">{{ formErrors.customer }}</small>
+        <div class="form-group-row">
+          <div class="form-group">
+            <label for="sale-customer">Seleccionar Cliente <span class="req">*</span></label>
+            <select id="sale-customer" v-model="selectedCustomerId" class="select-field">
+              <option v-for="c in customers" :key="c.id" :value="c.id">
+                {{ c.name }} (RUT: {{ c.taxId }})
+              </option>
+            </select>
+            <small v-if="formErrors.customer" class="error-text">{{ formErrors.customer }}</small>
+          </div>
+
+          <div class="form-group">
+            <label for="sale-payment-method">Medio de Pago <span class="req">*</span></label>
+            <select id="sale-payment-method" v-model="selectedPaymentMethod" class="select-field">
+              <option value="CASH">💵 Efectivo (Suma a gaveta de caja)</option>
+              <option value="DEBIT">💳 Tarjeta de Débito (POS)</option>
+              <option value="CREDIT">💳 Tarjeta de Crédito</option>
+              <option value="TRANSFER">📱 Transferencia Bancaria</option>
+            </select>
+          </div>
         </div>
 
         <div class="sale-lines-section">

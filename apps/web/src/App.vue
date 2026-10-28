@@ -7,6 +7,7 @@ import CustomersView from "./components/CustomersView.vue";
 import ProductsView from "./components/ProductsView.vue";
 import InventoryView from "./components/InventoryView.vue";
 import SalesView from "./components/SalesView.vue";
+import CashShiftView from "./components/CashShiftView.vue";
 import SuppliersView from "./components/SuppliersView.vue";
 import SettingsView from "./components/SettingsView.vue";
 import AuditView from "./components/AuditView.vue";
@@ -16,14 +17,16 @@ const {
   customers,
   products,
   sales,
+  currentShift,
   auditLogs,
   lowStockProducts,
   totalStockUnits,
   totalSalesAmount,
-  formatCurrency
+  formatCurrency,
+  syncWithBackend
 } = store;
 
-type ViewKey = "overview" | "customers" | "products" | "inventory" | "sales" | "suppliers" | "settings" | "audit";
+type ViewKey = "overview" | "inventory" | "sales" | "cash" | "customers" | "products" | "suppliers" | "settings" | "audit";
 
 const currentView = ref<ViewKey>("overview");
 const summary = ref<DashboardSummary | null>(null);
@@ -38,10 +41,11 @@ function updateViewFromHash() {
   const hash = window.location.hash.replace("#", "") as ViewKey;
   const validViews: ViewKey[] = [
     "overview",
-    "customers",
-    "products",
     "inventory",
     "sales",
+    "cash",
+    "customers",
+    "products",
     "suppliers",
     "settings",
     "audit"
@@ -87,6 +91,7 @@ async function loadDashboard() {
 onMounted(() => {
   updateViewFromHash();
   window.addEventListener("hashchange", updateViewFromHash);
+  syncWithBackend();
   loadDashboard();
 });
 
@@ -132,6 +137,14 @@ onUnmounted(() => {
           @click.prevent="navigateTo('sales')"
         >
           Ventas
+        </a>
+        <a
+          class="nav-item"
+          :class="{ 'is-active': currentView === 'cash' }"
+          href="#cash"
+          @click.prevent="navigateTo('cash')"
+        >
+          Caja / Arqueo
         </a>
         <a
           class="nav-item"
@@ -210,6 +223,13 @@ onUnmounted(() => {
             <span>Ventas Acumuladas</span>
             <strong>{{ formatCurrency(totalSalesAmount) }}</strong>
             <small>{{ sales.length }} órdenes cerradas</small>
+          </div>
+          <div class="metric">
+            <span>Caja del Día</span>
+            <strong :style="currentShift ? 'color: #166534;' : 'color: #64748b;'">
+              {{ currentShift ? formatCurrency(currentShift.expectedCashMinor) : 'Caja Cerrada' }}
+            </strong>
+            <small>{{ currentShift ? 'Turno en curso' : 'Sin turno activo' }}</small>
           </div>
           <div class="metric">
             <span>Unidades en Stock</span>
@@ -299,13 +319,16 @@ onUnmounted(() => {
       <!-- 5. VISTA VENTAS -->
       <SalesView v-else-if="currentView === 'sales'" />
 
-      <!-- 6. VISTA PROVEEDORES -->
+      <!-- 6. VISTA CAJA / ARQUEO -->
+      <CashShiftView v-else-if="currentView === 'cash'" />
+
+      <!-- 7. VISTA PROVEEDORES -->
       <SuppliersView v-else-if="currentView === 'suppliers'" />
 
-      <!-- 7. VISTA CONFIGURACIÓN -->
+      <!-- 8. VISTA CONFIGURACIÓN -->
       <SettingsView v-else-if="currentView === 'settings'" />
 
-      <!-- 8. VISTA AUDITORÍA -->
+      <!-- 9. VISTA AUDITORÍA -->
       <AuditView v-else-if="currentView === 'audit'" />
 
       <!-- Footer Común -->

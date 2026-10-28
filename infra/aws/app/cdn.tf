@@ -1,4 +1,5 @@
 resource "aws_cloudfront_origin_access_control" "web" {
+  count                             = var.enable_cdn ? 1 : 0
   name                              = "${local.name_prefix}-web-oac"
   description                       = "Private access from CloudFront to Nexora web bucket"
   origin_access_control_origin_type = "s3"
@@ -7,19 +8,23 @@ resource "aws_cloudfront_origin_access_control" "web" {
 }
 
 data "aws_cloudfront_cache_policy" "optimized" {
-  name = "Managed-CachingOptimized"
+  count = var.enable_cdn ? 1 : 0
+  name  = "Managed-CachingOptimized"
 }
 
 data "aws_cloudfront_cache_policy" "disabled" {
-  name = "Managed-CachingDisabled"
+  count = var.enable_cdn ? 1 : 0
+  name  = "Managed-CachingDisabled"
 }
 
 data "aws_cloudfront_origin_request_policy" "api" {
-  name = "Managed-AllViewerExceptHostHeader"
+  count = var.enable_cdn ? 1 : 0
+  name  = "Managed-AllViewerExceptHostHeader"
 }
 
 resource "aws_cloudfront_response_headers_policy" "security" {
-  name = "${local.name_prefix}-security-headers"
+  count = var.enable_cdn ? 1 : 0
+  name  = "${local.name_prefix}-security-headers"
 
   security_headers_config {
     content_type_options {
@@ -56,6 +61,7 @@ resource "aws_cloudfront_response_headers_policy" "security" {
 }
 
 resource "aws_cloudfront_distribution" "web" {
+  count               = var.enable_cdn ? 1 : 0
   enabled             = true
   is_ipv6_enabled     = true
   default_root_object = "index.html"
@@ -63,9 +69,9 @@ resource "aws_cloudfront_distribution" "web" {
   comment             = "Nexora ${var.environment}"
 
   origin {
-    domain_name              = aws_s3_bucket.web.bucket_regional_domain_name
+    domain_name              = aws_s3_bucket.web[0].bucket_regional_domain_name
     origin_id                = "web-s3"
-    origin_access_control_id = aws_cloudfront_origin_access_control.web.id
+    origin_access_control_id = aws_cloudfront_origin_access_control.web[0].id
   }
 
   origin {
@@ -85,8 +91,8 @@ resource "aws_cloudfront_distribution" "web" {
     viewer_protocol_policy     = "redirect-to-https"
     allowed_methods            = ["GET", "HEAD", "OPTIONS"]
     cached_methods             = ["GET", "HEAD", "OPTIONS"]
-    cache_policy_id            = data.aws_cloudfront_cache_policy.optimized.id
-    response_headers_policy_id = aws_cloudfront_response_headers_policy.security.id
+    cache_policy_id            = data.aws_cloudfront_cache_policy.optimized[0].id
+    response_headers_policy_id = aws_cloudfront_response_headers_policy.security[0].id
     compress                   = true
   }
 
@@ -96,9 +102,9 @@ resource "aws_cloudfront_distribution" "web" {
     viewer_protocol_policy     = "https-only"
     allowed_methods            = ["GET", "HEAD", "OPTIONS"]
     cached_methods             = ["GET", "HEAD"]
-    cache_policy_id            = data.aws_cloudfront_cache_policy.disabled.id
-    origin_request_policy_id   = data.aws_cloudfront_origin_request_policy.api.id
-    response_headers_policy_id = aws_cloudfront_response_headers_policy.security.id
+    cache_policy_id            = data.aws_cloudfront_cache_policy.disabled[0].id
+    origin_request_policy_id   = data.aws_cloudfront_origin_request_policy.api[0].id
+    response_headers_policy_id = aws_cloudfront_response_headers_policy.security[0].id
     compress                   = true
   }
 
@@ -115,12 +121,14 @@ resource "aws_cloudfront_distribution" "web" {
 }
 
 data "aws_iam_policy_document" "web_bucket" {
+  count = var.enable_cdn ? 1 : 0
+
   statement {
     sid     = "AllowCloudFrontReadOnly"
     effect  = "Allow"
     actions = ["s3:GetObject"]
     resources = [
-      "${aws_s3_bucket.web.arn}/*"
+      "${aws_s3_bucket.web[0].arn}/*"
     ]
 
     principals {
@@ -131,12 +139,13 @@ data "aws_iam_policy_document" "web_bucket" {
     condition {
       test     = "StringEquals"
       variable = "AWS:SourceArn"
-      values   = [aws_cloudfront_distribution.web.arn]
+      values   = [aws_cloudfront_distribution.web[0].arn]
     }
   }
 }
 
 resource "aws_s3_bucket_policy" "web" {
-  bucket = aws_s3_bucket.web.id
-  policy = data.aws_iam_policy_document.web_bucket.json
+  count  = var.enable_cdn ? 1 : 0
+  bucket = aws_s3_bucket.web[0].id
+  policy = data.aws_iam_policy_document.web_bucket[0].json
 }

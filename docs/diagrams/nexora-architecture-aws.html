@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nexora AWS Architecture — Cloud Production & Lab Topology</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --font-serif: 'Instrument Serif', Georgia, serif;
+      --font-sans: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      --font-mono: 'Geist Mono', monospace;
+
+      /* Editorial Theme (Default) */
+      --bg-page: #f9f9f8;
+      --bg-card: #ffffff;
+      --bg-container: #f2f2ee;
+      --border-subtle: #e2e2dc;
+      --border-strong: #2d3142;
+      --text-ink: #1c1f2e;
+      --text-muted: #62677a;
+      --text-soft: #8f94a6;
+      --accent: #eb6c36;
+      --accent-tint: #fef2eb;
+      --accent-border: #f7a982;
+      --aws-orange: #ff9900;
+      --aws-orange-tint: #fff8f0;
+      --link: #2563eb;
+      --link-tint: #eff6ff;
+      --success: #15803d;
+      --success-tint: #f0fdf4;
+      --purple: #7c3aed;
+      --purple-tint: #f5f3ff;
+    }
+
+    [data-theme="light"] {
+      --bg-page: #ffffff;
+      --bg-card: #ffffff;
+      --bg-container: #f8fafc;
+      --border-subtle: #e2e8f0;
+      --border-strong: #0f172a;
+      --text-ink: #0f172a;
+      --text-muted: #475569;
+      --text-soft: #94a3b8;
+      --accent: #2563eb;
+      --accent-tint: #eff6ff;
+      --accent-border: #93c5fd;
+      --aws-orange: #ea580c;
+      --aws-orange-tint: #fff7ed;
+      --link: #0284c7;
+      --link-tint: #f0f9ff;
+      --success: #16a34a;
+      --success-tint: #f0fdf4;
+      --purple: #6d28d9;
+      --purple-tint: #f5f3ff;
+    }
+
+    [data-theme="dark"] {
+      --bg-page: #0b0f17;
+      --bg-card: #151b26;
+      --bg-container: #1b2331;
+      --border-subtle: #2d3748;
+      --border-strong: #94a3b8;
+      --text-ink: #f1f5f9;
+      --text-muted: #94a3b8;
+      --text-soft: #64748b;
+      --accent: #f0883e;
+      --accent-tint: #2a1b12;
+      --accent-border: #80471c;
+      --aws-orange: #fb923c;
+      --aws-orange-tint: #2b1810;
+      --link: #60a5fa;
+      --link-tint: #132742;
+      --success: #4ade80;
+      --success-tint: #12281a;
+      --purple: #a78bfa;
+      --purple-tint: #231938;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-page);
+      color: var(--text-ink);
+      font-family: var(--font-sans);
+      min-height: 100vh;
+      padding: 36px 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      transition: background-color 0.2s ease, color 0.2s ease;
+    }
+
+    .canvas-container {
+      width: 100%;
+      max-width: 1240px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px;
+      padding: 36px 40px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+    }
+
+    header {
+      margin-bottom: 28px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      border-bottom: 1px solid var(--border-subtle);
+      padding-bottom: 22px;
+    }
+
+    .eyebrow {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--aws-orange);
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+
+    h1 {
+      font-family: var(--font-serif);
+      font-size: 34px;
+      font-weight: 400;
+      line-height: 1.15;
+      color: var(--text-ink);
+      margin-bottom: 8px;
+    }
+
+    .subtitle {
+      font-size: 13.5px;
+      color: var(--text-muted);
+      max-width: 760px;
+      line-height: 1.5;
+    }
+
+    .theme-selector {
+      display: flex;
+      background: var(--bg-container);
+      border: 1px solid var(--border-subtle);
+      border-radius: 6px;
+      padding: 3px;
+      gap: 2px;
+    }
+
+    .theme-btn {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      padding: 4px 10px;
+      border: none;
+      background: transparent;
+      color: var(--text-muted);
+      cursor: pointer;
+      border-radius: 4px;
+      font-weight: 500;
+      transition: all 0.15s ease;
+    }
+
+    .theme-btn.active {
+      background: var(--bg-card);
+      color: var(--text-ink);
+      box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+    }
+
+    .svg-wrapper {
+      width: 100%;
+      overflow-x: auto;
+      display: flex;
+      justify-content: center;
+    }
+
+    svg {
+      display: block;
+      width: 100%;
+      height: auto;
+      max-width: 1160px;
+    }
+
+    .legend-bar {
+      margin-top: 24px;
+      padding-top: 18px;
+      border-top: 1px solid var(--border-subtle);
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      font-size: 11.5px;
+      color: var(--text-muted);
+    }
+
+    .legend-items {
+      display: flex;
+      gap: 18px;
+      align-items: center;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+    }
+
+    .legend-dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 2px;
+    }
+
+    .version-tag {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      padding: 3px 8px;
+      border-radius: 4px;
+      background: var(--bg-container);
+      border: 1px solid var(--border-subtle);
+    }
+  </style>
+</head>
+<body data-theme="editorial">
+
+  <div class="canvas-container">
+    <header>
+      <div>
+        <div class="eyebrow">AWS Cloud Architecture · Dedicated SME & MSP Serverless Model</div>
+        <h1>Nexora ERP Pyme — Topología de Despliegue en AWS</h1>
+        <p class="subtitle">Arquitectura Dedicada para Pequeñas y Medianas Empresas ("Sencillez y Rapidez"): Despliegue 1-Click en cuenta propia de AWS del cliente (~$0.00/mes en reposo), API Gateway HTTP API, cómputo ultrarrápido con Lambda ARM64 (Fastify), Single-Table DynamoDB On-Demand (patrones de Odoo y ERPNext: Contactos unificados, inventario partida doble y arqueo de caja diario), y observabilidad con costo 100% predecible.</p>
+      </div>
+
+      <div class="theme-selector">
+        <button class="theme-btn active" onclick="setTheme('editorial')">Editorial</button>
+        <button class="theme-btn" onclick="setTheme('light')">Light</button>
+        <button class="theme-btn" onclick="setTheme('dark')">Dark</button>
+      </div>
+    </header>
+
+    <div class="svg-wrapper">
+      <svg viewBox="0 0 1160 670" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <!-- Markers -->
+          <marker id="arrow-ink" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M 1 2 L 7 5 L 1 8 Z" fill="var(--text-ink)" />
+          </marker>
+          <marker id="arrow-link" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M 1 2 L 7 5 L 1 8 Z" fill="var(--link)" />
+          </marker>
+          <marker id="arrow-accent" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M 1 2 L 7 5 L 1 8 Z" fill="var(--accent)" />
+          </marker>
+          <marker id="arrow-aws" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M 1 2 L 7 5 L 1 8 Z" fill="var(--aws-orange)" />
+          </marker>
+          <marker id="arrow-muted" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M 1 2 L 7 5 L 1 8 Z" fill="var(--text-muted)" />
+          </marker>
+          <marker id="arrow-purple" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M 1 2 L 7 5 L 1 8 Z" fill="var(--purple)" />
+          </marker>
+        </defs>
+
+        <!-- ================= LAYER 1: ZONES & TRUST BOUNDARIES ================= -->
+
+        <!-- Zone 0: User Clients (Internet) -->
+        <rect x="20" y="20" width="130" height="470" rx="8" fill="var(--bg-container)" stroke="var(--border-subtle)" stroke-width="1.2" />
+        <text x="32" y="44" font-family="var(--font-mono)" font-size="8.5" font-weight="600" letter-spacing="0.1em" fill="var(--text-soft)" text-transform="uppercase">INTERNET CLIENTS</text>
+
+        <!-- Zone 1: AWS Edge Boundary (CloudFront CDN) -->
+        <rect x="170" y="20" width="220" height="470" rx="8" fill="var(--bg-container)" stroke="var(--aws-orange)" stroke-width="1.5" stroke-dasharray="5 4" stroke-opacity="0.8" />
+        <rect x="182" y="32" width="165" height="18" rx="3" fill="var(--aws-orange-tint)" />
+        <text x="188" y="45" font-family="var(--font-mono)" font-size="8" font-weight="700" letter-spacing="0.08em" fill="var(--aws-orange)" text-transform="uppercase">AWS EDGE · CLOUDFRONT CDN</text>
+
+        <!-- Zone 2: AWS Region us-east-1 (Cloud Services) -->
+        <rect x="410" y="20" width="730" height="470" rx="8" fill="var(--bg-container)" stroke="var(--border-strong)" stroke-width="1.5" />
+        <rect x="424" y="32" width="215" height="18" rx="3" fill="var(--bg-card)" stroke="var(--border-subtle)" stroke-width="1" />
+        <text x="432" y="45" font-family="var(--font-mono)" font-size="8" font-weight="700" letter-spacing="0.08em" fill="var(--text-ink)" text-transform="uppercase">AWS REGION: us-east-1 (SERVERLESS TIER)</text>
+
+        <!-- Zone 3: Observability & FinOps Governance Sub-Zone (Bottom Bar) -->
+        <rect x="20" y="510" width="1120" height="135" rx="8" fill="var(--bg-container)" stroke="var(--border-subtle)" stroke-width="1.2" />
+        <text x="36" y="532" font-family="var(--font-mono)" font-size="8.5" font-weight="600" letter-spacing="0.1em" fill="var(--purple)" text-transform="uppercase">FINOPS & OBSERVABILITY GOVERNANCE · ZERO UNEXPECTED COSTS</text>
+
+
+        <!-- ================= LAYER 2: NODES & INFRASTRUCTURE COMPONENTS ================= -->
+
+        <!-- 1. End Users / Browser -->
+        <g id="node-user">
+          <rect x="30" y="195" width="110" height="120" rx="6" fill="var(--bg-card)" stroke="var(--border-strong)" stroke-width="1.5" />
+          <text x="42" y="218" font-family="var(--font-mono)" font-size="7.5" font-weight="600" fill="var(--text-soft)">HTTPS / TLS 1.3</text>
+          <text x="42" y="238" font-family="var(--font-sans)" font-size="13" font-weight="600" fill="var(--text-ink)">User Browser</text>
+          <text x="42" y="254" font-family="var(--font-mono)" font-size="8.5" fill="var(--text-muted)">ERP Web App</text>
+          <line x1="42" y1="264" x2="128" y2="264" stroke="var(--border-subtle)" stroke-width="1" />
+          <text x="42" y="278" font-family="var(--font-mono)" font-size="7.2" fill="var(--purple)">• 1. Auth via Cognito</text>
+          <text x="42" y="292" font-family="var(--font-mono)" font-size="7.2" fill="var(--link)">• 2. Static UI via S3/CDN</text>
+          <text x="42" y="306" font-family="var(--font-mono)" font-size="7.2" fill="var(--aws-orange)">• 3. API + Bearer JWT</text>
+        </g>
+
+        <!-- 2. Amazon CloudFront Distribution -->
+        <g id="node-cloudfront">
+          <rect x="185" y="70" width="190" height="395" rx="6" fill="var(--bg-card)" stroke="var(--aws-orange)" stroke-width="1.8" />
+          
+          <rect x="198" y="86" width="110" height="16" rx="3" fill="var(--aws-orange-tint)" />
+          <text x="204" y="98" font-family="var(--font-mono)" font-size="8" fill="var(--aws-orange)" font-weight="700">CLOUDFRONT DIST</text>
+          
+          <text x="198" y="124" font-family="var(--font-sans)" font-size="15" font-weight="600" fill="var(--text-ink)">Edge Router & CDN</text>
+          <text x="198" y="142" font-family="var(--font-mono)" font-size="9" fill="var(--text-muted)">PriceClass_100 (NA/EU)</text>
+
+          <line x1="198" y1="154" x2="362" y2="154" stroke="var(--border-subtle)" stroke-width="1" />
+
+          <text x="198" y="174" font-family="var(--font-mono)" font-size="8.5" font-weight="600" fill="var(--text-ink)">Behavior 1: /* (Static UI)</text>
+          <text x="198" y="190" font-family="var(--font-mono)" font-size="8" fill="var(--text-muted)">• Origin: S3 Web Bucket</text>
+          <text x="198" y="204" font-family="var(--font-mono)" font-size="8" fill="var(--text-muted)">• Auth: Origin Access Control (OAC)</text>
+          <text x="198" y="218" font-family="var(--font-mono)" font-size="8" fill="var(--success)">• Managed-CachingOptimized</text>
+
+          <line x1="198" y1="230" x2="362" y2="230" stroke="var(--border-subtle)" stroke-width="1" />
+
+          <text x="198" y="250" font-family="var(--font-mono)" font-size="8.5" font-weight="600" fill="var(--text-ink)">Behavior 2: /api/* (Backend)</text>
+          <text x="198" y="266" font-family="var(--font-mono)" font-size="8" fill="var(--text-muted)">• Origin: API Gateway HTTP API</text>
+          <text x="198" y="280" font-family="var(--font-mono)" font-size="8" fill="var(--text-muted)">• Policy: CachingDisabled</text>
+          <text x="198" y="294" font-family="var(--font-mono)" font-size="8" fill="var(--link)">• AllViewerExceptHostHeader</text>
+
+          <line x1="198" y1="306" x2="362" y2="306" stroke="var(--border-subtle)" stroke-width="1" />
+
+          <text x="198" y="326" font-family="var(--font-mono)" font-size="8.5" font-weight="600" fill="var(--text-ink)">Security Headers Policy:</text>
+          <text x="198" y="342" font-family="var(--font-mono)" font-size="7.8" fill="var(--text-muted)">• Strict CSP & Frame-Options: DENY</text>
+          <text x="198" y="356" font-family="var(--font-mono)" font-size="7.8" fill="var(--text-muted)">• HSTS (31536000s) + No-Sniff</text>
+          <text x="198" y="370" font-family="var(--font-mono)" font-size="7.8" fill="var(--text-muted)">• Permissions-Policy (cam/geo off)</text>
+          <text x="198" y="384" font-family="var(--font-mono)" font-size="7.8" fill="var(--text-muted)">• TLSv1.2_2021 Minimum</text>
+
+          <line x1="198" y1="396" x2="362" y2="396" stroke="var(--border-subtle)" stroke-width="1" />
+          <text x="198" y="418" font-family="var(--font-mono)" font-size="8" fill="var(--success)">● SSL/TLS: *.cloudfront.net</text>
+          <text x="198" y="434" font-family="var(--font-mono)" font-size="8" fill="var(--text-soft)">IPv6 Enabled · Gzip/Brotli</text>
+        </g>
+
+        <!-- 3. Amazon S3 (Web Bucket) -->
+        <g id="node-s3">
+          <rect x="430" y="70" width="200" height="180" rx="6" fill="var(--bg-card)" stroke="var(--border-strong)" stroke-width="1.5" />
+          <rect x="444" y="86" width="68" height="16" rx="3" fill="var(--link-tint)" />
+          <text x="450" y="98" font-family="var(--font-mono)" font-size="8" fill="var(--link)" font-weight="700">AMAZON S3</text>
+          <text x="444" y="124" font-family="var(--font-sans)" font-size="14.5" font-weight="600" fill="var(--text-ink)">nexora-web-bucket</text>
+          <text x="444" y="142" font-family="var(--font-mono)" font-size="9" fill="var(--text-muted)">Private Static Storage</text>
+          
+          <line x1="444" y1="154" x2="616" y2="154" stroke="var(--border-subtle)" stroke-width="1" />
+
+          <text x="444" y="174" font-family="var(--font-mono)" font-size="8" fill="var(--text-muted)">• Public Access: Blocked (100%)</text>
+          <text x="444" y="190" font-family="var(--font-mono)" font-size="8" fill="var(--text-muted)">• Encryption: SSE-S3 (AES256)</text>
+          <text x="444" y="206" font-family="var(--font-mono)" font-size="8" fill="var(--text-muted)">• Versioning Enabled</text>
+          <text x="444" y="222" font-family="var(--font-mono)" font-size="8" fill="var(--text-muted)">• Lifecycle: 7d noncurrent expire</text>
+          <text x="444" y="238" font-family="var(--font-mono)" font-size="8" fill="var(--success)">● OAC Policy: CloudFront Only</text>
+        </g>
+
+        <!-- 3b. Amazon Cognito User Pool (Identity & Multi-Tenant IDP) -->
+        <g id="node-cognito">
+          <rect x="670" y="70" width="220" height="180" rx="6" fill="var(--purple-tint)" stroke="var(--purple)" stroke-width="1.8" />
+          <rect x="684" y="86" width="108" height="16" rx="3" fill="var(--purple)" />
+          <text x="690" y="98" font-family="var(--font-mono)" font-size="8" fill="#ffffff" font-weight="700">AMAZON COGNITO</text>
+          <text x="684" y="124" font-family="var(--font-sans)" font-size="14.5" font-weight="700" fill="var(--text-ink)">nexora-user-pool</text>
+          <text x="684" y="142" font-family="var(--font-mono)" font-size="9" fill="var(--purple)" font-weight="600">Identity & Multi-Tenant IDP</text>
+
+          <line x1="684" y1="154" x2="876" y2="154" stroke="var(--border-subtle)" stroke-width="1" />
+
+          <text x="684" y="174" font-family="var(--font-mono)" font-size="8" fill="var(--text-muted)">• App Client: Public SPA (PKCE Flow)</text>
+          <text x="684" y="190" font-family="var(--font-mono)" font-size="8" fill="var(--purple)" font-weight="600">• Claims: custom:tenant_id</text>
+          <text x="684" y="206" font-family="var(--font-mono)" font-size="8" fill="var(--text-muted)">• RBAC Groups: Admin, Operador, Auditor</text>
+          <text x="684" y="222" font-family="var(--font-mono)" font-size="8" fill="var(--text-muted)">• MFA, Password Policy & Lockout</text>
+          <text x="684" y="238" font-family="var(--font-mono)" font-size="8" fill="var(--success)">● Issues Cryptographic JWTs (RS256)</text>
+        </g>
+
+        <!-- 4. Amazon API Gateway HTTP API -->
+        <g id="node-apigw">
+          <rect x="430" y="280" width="200" height="185" rx="6" fill="var(--bg-card)" stroke="var(--border-strong)" stroke-width="1.5" />
+          <rect x="444" y="296" width="76" height="16" rx="3" fill="var(--aws-orange-tint)" />
+          <text x="450" y="308" font-family="var(--font-mono)" font-size="8" fill="var(--aws-orange)" font-weight="700">HTTP API V2</text>
+          <text x="444" y="334" font-family="var(--font-sans)" font-size="14.5" font-weight="600" fill="var(--text-ink)">nexora-http-api</text>
+          <text x="444" y="352" font-family="var(--font-mono)" font-size="9" fill="var(--text-muted)">Low Latency Ingress Gateway</text>
+
+          <line x1="444" y1="364" x2="616" y2="364" stroke="var(--border-subtle)" stroke-width="1" />
+
+          <text x="444" y="384" font-family="var(--font-mono)" font-size="8" fill="var(--purple)" font-weight="600">• Native JWT Authorizer (Cognito)</text>
+          <text x="444" y="400" font-family="var(--font-mono)" font-size="8" fill="var(--text-muted)">• Protected: /api/v1/* (Validates JWT)</text>
+          <text x="444" y="416" font-family="var(--font-mono)" font-size="8" fill="var(--text-muted)">• Public: /health, /dashboard</text>
+          <text x="444" y="432" font-family="var(--font-mono)" font-size="8" fill="var(--text-muted)">• Passes Claims & Tenant Context</text>
+          <text x="444" y="448" font-family="var(--font-mono)" font-size="8" fill="var(--success)">● Throttle: Rate 5 rps / Burst 10</text>
+        </g>
+
+        <!-- 5. AWS Lambda (API Compute) - FOCAL ACCENT -->
+        <g id="node-lambda">
+          <rect x="670" y="280" width="220" height="185" rx="6" fill="var(--accent-tint)" stroke="var(--accent)" stroke-width="2" />
+          <rect x="684" y="296" width="76" height="16" rx="3" fill="var(--accent)" />
+          <text x="690" y="308" font-family="var(--font-mono)" font-size="8" fill="#ffffff" font-weight="700">AWS LAMBDA</text>
+          <text x="684" y="334" font-family="var(--font-sans)" font-size="15" font-weight="700" fill="var(--text-ink)">nexora-api (ARM64)</text>
+          <text x="684" y="352" font-family="var(--font-mono)" font-size="9" fill="var(--accent)" font-weight="600">Runtime: Node.js 22 (Fastify)</text>
+
+          <line x1="684" y1="364" x2="876" y2="364" stroke="var(--accent-border)" stroke-width="1" />
+
+          <text x="684" y="384" font-family="var(--font-mono)" font-size="8" fill="var(--purple)" font-weight="600">• Multi-Tenant Isolation via JWT Claims</text>
+          <text x="684" y="400" font-family="var(--font-mono)" font-size="8" fill="var(--text-muted)">• Memory: 256 MB · Timeout: 10s</text>
+          <text x="684" y="416" font-family="var(--font-mono)" font-size="8" fill="var(--text-muted)">• Reserved Concurrency: 2 (Cap)</text>
+          <text x="684" y="432" font-family="var(--font-mono)" font-size="8" fill="var(--text-muted)">• IAM Least Privilege Execution</text>
+          <text x="684" y="448" font-family="var(--font-mono)" font-size="8" fill="var(--success)">● Enforces Partition: TENANT#&lt;id&gt;</text>
+        </g>
+
+        <!-- 6. Amazon DynamoDB Table -->
+        <g id="node-dynamo">
+          <rect x="930" y="280" width="195" height="185" rx="6" fill="var(--bg-card)" stroke="var(--border-strong)" stroke-width="1.5" />
+          <rect x="944" y="296" width="80" height="16" rx="3" fill="var(--link-tint)" />
+          <text x="950" y="308" font-family="var(--font-mono)" font-size="8" fill="var(--link)" font-weight="700">DYNAMODB</text>
+          <text x="944" y="334" font-family="var(--font-sans)" font-size="15" font-weight="600" fill="var(--text-ink)">nexora-table</text>
+          <text x="944" y="352" font-family="var(--font-mono)" font-size="9" fill="var(--text-muted)">Single-Table Persistence</text>
+
+          <line x1="944" y1="364" x2="1110" y2="364" stroke="var(--border-subtle)" stroke-width="1" />
+
+          <text x="944" y="384" font-family="var(--font-mono)" font-size="8" fill="var(--purple)" font-weight="600">• Tenant-Scoped Partition Key (PK)</text>
+          <text x="944" y="400" font-family="var(--font-mono)" font-size="8" fill="var(--text-muted)">• Mode: PAY_PER_REQUEST (On-Demand)</text>
+          <text x="944" y="416" font-family="var(--font-mono)" font-size="8" fill="var(--text-muted)">• Sort Key: SK (Entity / Hierarchy)</text>
+          <text x="944" y="432" font-family="var(--font-mono)" font-size="8" fill="var(--text-muted)">• TransactWriteItems (Stock/Sales)</text>
+          <text x="944" y="448" font-family="var(--font-mono)" font-size="8" fill="var(--success)">● Zero-Scan Multi-AZ Isolation</text>
+        </g>
+
+        <!-- 7. Terraform State Storage (Bootstrap) -->
+        <g id="node-tf-state">
+          <rect x="930" y="70" width="195" height="180" rx="6" fill="var(--bg-card)" stroke="var(--border-subtle)" stroke-width="1.2" />
+          <rect x="944" y="86" width="90" height="16" rx="3" fill="var(--bg-container)" />
+          <text x="950" y="98" font-family="var(--font-mono)" font-size="8" fill="var(--text-muted)" font-weight="600">IAC BOOTSTRAP</text>
+          <text x="944" y="124" font-family="var(--font-sans)" font-size="14" font-weight="600" fill="var(--text-ink)">TF State S3 Bucket</text>
+          <text x="944" y="142" font-family="var(--font-mono)" font-size="9" fill="var(--text-muted)">infra/aws/bootstrap</text>
+
+          <line x1="944" y1="154" x2="1110" y2="154" stroke="var(--border-subtle)" stroke-width="1" />
+
+          <text x="944" y="174" font-family="var(--font-mono)" font-size="8" fill="var(--text-muted)">• Dedicated Private State</text>
+          <text x="944" y="190" font-family="var(--font-mono)" font-size="8" fill="var(--text-muted)">• Versioning + prevent_destroy</text>
+          <text x="944" y="206" font-family="var(--font-mono)" font-size="8" fill="var(--text-muted)">• Public Access Blocked</text>
+          <text x="944" y="222" font-family="var(--font-mono)" font-size="8" fill="var(--text-muted)">• SSE-S3 Encryption</text>
+          <text x="944" y="238" font-family="var(--font-mono)" font-size="8" fill="var(--success)">● Independent Lifecycle</text>
+        </g>
+
+        <!-- ================= FINOPS & OBSERVABILITY NODES (ROW BOTTOM) ================= -->
+
+        <!-- 8. CloudWatch Logs & Metrics -->
+        <g id="node-cw">
+          <rect x="40" y="550" width="310" height="75" rx="6" fill="var(--bg-card)" stroke="var(--border-subtle)" stroke-width="1.2" />
+          <text x="54" y="572" font-family="var(--font-mono)" font-size="8" font-weight="700" fill="var(--purple)">AMAZON CLOUDWATCH</text>
+          <text x="54" y="590" font-family="var(--font-sans)" font-size="13" font-weight="600" fill="var(--text-ink)">Structured Logs & Metrics</text>
+          <text x="54" y="608" font-family="var(--font-mono)" font-size="8" fill="var(--text-muted)">• Log Retention: 7 days (/aws/lambda & /aws/apigateway)</text>
+        </g>
+
+        <!-- 9. Alarms & SNS Alerts -->
+        <g id="node-sns">
+          <rect x="380" y="550" width="340" height="75" rx="6" fill="var(--bg-card)" stroke="var(--border-subtle)" stroke-width="1.2" />
+          <text x="394" y="572" font-family="var(--font-mono)" font-size="8" font-weight="700" fill="var(--purple)">METRIC ALARMS & SNS</text>
+          <text x="394" y="590" font-family="var(--font-sans)" font-size="13" font-weight="600" fill="var(--text-ink)">nexora-alerts Topic</text>
+          <text x="394" y="608" font-family="var(--font-mono)" font-size="8" fill="var(--text-muted)">• Lambda Errors &ge; 1 (5m) · API 5xx &ge; 1 &rarr; Email Dispatch</text>
+        </g>
+
+        <!-- 10. AWS Budgets FinOps Guardrail -->
+        <g id="node-budget">
+          <rect x="750" y="550" width="370" height="75" rx="6" fill="var(--purple-tint)" stroke="var(--purple)" stroke-width="1.5" />
+          <text x="764" y="572" font-family="var(--font-mono)" font-size="8" font-weight="700" fill="var(--purple)">AWS BUDGETS · FINOPS GUARDRAIL</text>
+          <text x="764" y="590" font-family="var(--font-sans)" font-size="13.5" font-weight="700" fill="var(--text-ink)">USD 40.00 / Mes Limit</text>
+          <text x="764" y="608" font-family="var(--font-mono)" font-size="8" fill="var(--purple)" font-weight="600">• Alerts: 50% (Forecasted) · 80% (Actual) · 100% (Actual)</text>
+        </g>
+
+
+        <!-- ================= LAYER 3: CONNECTIONS & LABELS ================= -->
+
+        <!-- Link 0: Browser -> Cognito (Auth Flow / JWT Tokens) -->
+        <path d="M 85 195 L 85 58 L 780 58 L 780 70" stroke="var(--purple)" stroke-width="1.8" stroke-dasharray="5 3" marker-end="url(#arrow-purple)" fill="none" />
+        <rect x="420" y="50" width="112" height="15" rx="2" fill="var(--bg-card)" stroke="var(--purple)" stroke-width="0.8" />
+        <text x="425" y="61" font-family="var(--font-mono)" font-size="7" font-weight="600" fill="var(--purple)">1. Auth Flow &rarr; Issues JWT</text>
+
+        <!-- Link 0b: API Gateway JWT Authorizer <-> Cognito (JWKS Validation) -->
+        <path d="M 700 250 L 700 266 L 530 266 L 530 280" stroke="var(--purple)" stroke-width="1.5" stroke-dasharray="3 3" marker-end="url(#arrow-purple)" fill="none" />
+        <rect x="566" y="259" width="102" height="14" rx="2" fill="var(--bg-card)" stroke="var(--purple)" stroke-width="0.8" />
+        <text x="570" y="269" font-family="var(--font-mono)" font-size="6.8" font-weight="600" fill="var(--purple)">JWKS Token Validation</text>
+
+        <!-- Link 1: Browser -> CloudFront (HTTPS) -->
+        <path d="M 140 255 L 185 255" stroke="var(--text-ink)" stroke-width="2" marker-end="url(#arrow-ink)" />
+        <rect x="145" y="243" width="35" height="15" rx="2" fill="var(--bg-card)" stroke="var(--border-subtle)" stroke-width="0.8" />
+        <text x="148" y="254" font-family="var(--font-mono)" font-size="7" fill="var(--text-muted)">HTTPS</text>
+
+        <!-- Link 2: CloudFront -> S3 Bucket (OAC) -->
+        <path d="M 375 160 L 430 160" stroke="var(--link)" stroke-width="1.8" marker-end="url(#arrow-link)" />
+        <rect x="382" y="148" width="42" height="15" rx="2" fill="var(--bg-card)" stroke="var(--link)" stroke-width="0.8" />
+        <text x="385" y="159" font-family="var(--font-mono)" font-size="7.5" font-weight="600" fill="var(--link)">S3 OAC</text>
+
+        <!-- Link 3: CloudFront -> API Gateway (/api/* with Bearer JWT) -->
+        <path d="M 375 365 L 430 365" stroke="var(--aws-orange)" stroke-width="2" marker-end="url(#arrow-aws)" />
+        <rect x="375" y="353" width="52" height="15" rx="2" fill="var(--bg-card)" stroke="var(--aws-orange)" stroke-width="0.8" />
+        <text x="378" y="364" font-family="var(--font-mono)" font-size="7" font-weight="600" fill="var(--aws-orange)">/api/* (JWT)</text>
+
+        <!-- Link 4: API Gateway -> Lambda Integration (AWS_PROXY + Claims) -->
+        <path d="M 630 365 L 670 365" stroke="var(--accent)" stroke-width="2" marker-end="url(#arrow-accent)" />
+        <rect x="632" y="353" width="36" height="15" rx="2" fill="var(--bg-card)" stroke="var(--accent)" stroke-width="0.8" />
+        <text x="634" y="364" font-family="var(--font-mono)" font-size="6.8" font-weight="600" fill="var(--accent)">PROXY+Claims</text>
+
+        <!-- Link 5: Lambda -> DynamoDB (AWS SDK v3 Query) -->
+        <path d="M 890 365 L 930 365" stroke="var(--link)" stroke-width="2" marker-end="url(#arrow-link)" />
+        <rect x="893" y="353" width="34" height="15" rx="2" fill="var(--bg-card)" stroke="var(--link)" stroke-width="0.8" />
+        <text x="896" y="364" font-family="var(--font-mono)" font-size="7.5" font-weight="600" fill="var(--link)">QUERY</text>
+
+        <!-- Link 6: Telemetry Lines (Lambda & API -> CloudWatch) -->
+        <path d="M 530 465 L 530 495 L 200 495 L 200 550" stroke="var(--purple)" stroke-width="1.2" stroke-dasharray="3 3" fill="none" marker-end="url(#arrow-purple)" />
+        <path d="M 780 465 L 780 495 L 200 495" stroke="var(--purple)" stroke-width="1.2" stroke-dasharray="3 3" fill="none" />
+        <rect x="330" y="488" width="85" height="14" rx="2" fill="var(--bg-card)" stroke="var(--border-subtle)" stroke-width="0.6" />
+        <text x="335" y="498" font-family="var(--font-mono)" font-size="7" fill="var(--purple)">Telemetry & Logs</text>
+
+        <!-- Link 7: CloudWatch -> Alarms / SNS -->
+        <path d="M 350 587 L 380 587" stroke="var(--purple)" stroke-width="1.5" marker-end="url(#arrow-purple)" />
+
+      </svg>
+    </div>
+
+    <div class="legend-bar">
+      <div class="legend-items">
+        <div class="legend-item">
+          <div class="legend-dot" style="background: var(--aws-orange);"></div>
+          <span>Edge Routing & Content Delivery (CloudFront)</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-dot" style="background: var(--purple);"></div>
+          <span>Identity & Multi-Tenant RBAC (Amazon Cognito & JWT)</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-dot" style="background: var(--accent);"></div>
+          <span>Focal Serverless Compute (Lambda ARM64)</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-dot" style="background: var(--link);"></div>
+          <span>Storage & Persistence (S3 & DynamoDB)</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-dot" style="background: var(--purple);"></div>
+          <span>FinOps & Observability ($40 Budget Cap)</span>
+        </div>
+      </div>
+      <div class="version-tag">
+        Nexora ERP · AWS Cloud Deployment (Serverless Production/Lab)
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function setTheme(theme) {
+      document.body.setAttribute('data-theme', theme);
+      document.querySelectorAll('.theme-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.textContent.toLowerCase() === theme);
+      });
+    }
+  </script>
+</body>
+</html>

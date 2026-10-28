@@ -15,3 +15,11 @@ coverage/
 .tmp/
 tmp/
 outputs/
+
+# Terraform providers binarios (se reinstalan con 'terraform init')
+**/.terraform/
+*.exe
+terraform-provider-*
+*.tfstate
+*.tfstate.backup
+.terraform.lock.hcl

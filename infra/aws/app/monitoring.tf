@@ -46,6 +46,7 @@ resource "aws_cloudwatch_metric_alarm" "api_5xx" {
 }
 
 resource "aws_budgets_budget" "lab" {
+  count        = var.enable_budget ? 1 : 0
   name         = "${local.name_prefix}-monthly-budget"
   budget_type  = "COST"
   limit_amount = tostring(var.budget_limit_usd)

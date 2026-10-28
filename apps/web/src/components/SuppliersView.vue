@@ -25,7 +25,7 @@ const filteredSuppliers = computed(() => {
     (s) =>
       s.name.toLowerCase().includes(query) ||
       s.taxId.toLowerCase().includes(query) ||
-      s.contactPerson.toLowerCase().includes(query) ||
+      (s.contactPerson?.toLowerCase().includes(query) ?? false) ||
       s.email.toLowerCase().includes(query)
   );
 });
